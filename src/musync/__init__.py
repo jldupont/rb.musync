@@ -18,6 +18,7 @@
 """
 PLUGIN_NAME="musync"
 TICK_FREQ=4
+TIME_BASE=250
 
 import os
 import sys
@@ -132,10 +133,11 @@ class Plugin (rb.Plugin):
             #Bus.publish("__main__", "entry_changed", dict_entry)
 
 def tick_publisher(*p):
+    #print p
     Bus.publish("__main__", "tick", *p)
 
-_tg=TickGenerator(TICK_FREQ, tick_publisher)
-gobject.timeout_add(1000/TICK_FREQ, _tg.input)
+_tg=TickGenerator(1000/TIME_BASE, tick_publisher)
+gobject.timeout_add(TIME_BASE, _tg.input)
 
 
 """

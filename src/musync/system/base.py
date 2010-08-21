@@ -325,9 +325,8 @@ class AgentThreadedBridge(object):
 
 
 class TickGenerator(object):
-    def __init__(self, time_base, publisher):
-        self.time_base=time_base 
-        self.ticks_second=1000/time_base
+    def __init__(self, ticks_second, publisher):
+        self.ticks_second=ticks_second
         self.publisher=publisher
 
         self.tick_count=0
