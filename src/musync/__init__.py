@@ -16,6 +16,7 @@
 
     
 """
+DEV_MODE=True
 PLUGIN_NAME="musync"
 TICK_FREQ=4
 TIME_BASE=250
@@ -44,9 +45,13 @@ from helpers.db import EntryHelper
 
 from config import ConfigDialog
 
+import system.base as base
+base.debug=DEV_MODE
+
 import system.mswitch
 import agents.bridge
-#import agents.mb
+import agents.mb
+import agents.monitor
 #import agents.libwalker
 
 import agents._tester
@@ -65,6 +70,9 @@ class Plugin (rb.Plugin):
         self.done=False
         self.db=None
         self.type_song=None
+        self.start_phase=True
+        self.current_entries_count=0
+        self.previous_entries_count=0
 
     def activate (self, shell):
         """
@@ -81,7 +89,7 @@ class Plugin (rb.Plugin):
                      self.db.connect("load-complete",  self.on_load_complete),
                      )
         ## Distribute the vital RB objects around
-        Bus.publish("pluging", "rb_shell", self.shell, self.db, self.sp)
+        Bus.publish("__pluging__", "rb_shell", self.shell, self.db, self.sp)
         
         self.type_song=self.db.entry_type_get_by_name("song")
         
@@ -108,7 +116,7 @@ class Plugin (rb.Plugin):
             proxy=ConfigDialog(glade_file_path)
             dialog=proxy.get_dialog() 
         dialog.present()
-        Bus.publish("pluging", "config?")
+        Bus.publish("__pluging__", "config?")
         return dialog
 
     ## ================================================  rb signal handlers
@@ -118,7 +126,7 @@ class Plugin (rb.Plugin):
         'load-complete' signal handler
         """
         self.load_complete=True
-        Bus.publish("pluging", "load_complete")
+        Bus.publish("__pluging__", "load_complete")
 
 
     def on_entry_changed(self, _db, entry, _):
@@ -127,14 +135,21 @@ class Plugin (rb.Plugin):
         
         This handler is also called during the start-up phase of RB... quite annoying
         """
-        type=entry.get_entry_type()
-        if type==self.type_song:
-            dict_entry=EntryHelper.track_details2(self.db, entry)
-            #Bus.publish("__main__", "entry_changed", dict_entry)
+        if not self.start_phase:
+            type=entry.get_entry_type()
+            if type==self.type_song:
+                dict_entry=EntryHelper.track_details2(self.db, entry)
+                Bus.publish("__main__", "entry_changed", dict_entry)
+        
+        if self.start_phase:
+            if self.previous_entries_count==self.current_entries_count:
+                if self.current_entries_count!=0:
+                    self.start_phase=False
+                    Bus.publish("__pluging__", "rb_load_completed")
+
 
 def tick_publisher(*p):
-    #print p
-    Bus.publish("__main__", "tick", *p)
+    Bus.publish("__main__", "__tick__", *p)
 
 _tg=TickGenerator(1000/TIME_BASE, tick_publisher)
 gobject.timeout_add(TIME_BASE, _tg.input)

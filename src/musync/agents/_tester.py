@@ -1,5 +1,5 @@
 """
-    
+    Just for testing...
         
     Created on 2010-08-20
     @author: jldupont
@@ -17,13 +17,14 @@ class TesterAgent(AgentThreadedWithEvents):
         AgentThreadedWithEvents.__init__(self)
         
     def t_sec(self, *_):
-        print "tsec!"
+        pass
     
     def t_min(self, *_):
         pass
         
     def h_entry_changed(self, entry):
-        print entry
+        pass
+        #print entry
         
         
 _=TesterAgent()

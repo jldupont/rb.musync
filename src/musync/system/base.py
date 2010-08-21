@@ -21,7 +21,6 @@ __all__=["AgentThreadedBase", "AgentThreadedWithEvents", "AgentThreadedBridge"
 
 debug=False
 
-
 def mdispatch(obj, obj_orig, envelope):
     """
     Dispatches a message to the target
@@ -83,8 +82,8 @@ class AgentThreadedBase(Thread):
         if debug:
             print "+ %s: %s" % (self.__class__, msg)
         
-    def pub(self, msgType, msg, *pargs, **kargs):
-        mswitch.publish(self.id, msgType, msg, *pargs, **kargs)
+    def pub(self, msgType, *pargs, **kargs):
+        mswitch.publish(self.id, msgType, *pargs, **kargs)
         
     def run(self):
         """
@@ -198,7 +197,7 @@ class AgentThreadedWithEvents(AgentThreadedBase):
             entries.append((interval, callback_name))
         
         
-    def h_tick(self, _ticks_per_second, 
+    def h___tick__(self, _ticks_per_second, 
                second_marker, min_marker, hour_marker, day_marker,
                sec_count, min_count, hour_count, day_count):
         """
@@ -282,7 +281,7 @@ class AgentThreadedBridge(object):
                         self.day_count += 1
         
         #print "tick! ", tick_second
-        mswitch.publish("__main__", "tick", self.ticks_second, 
+        mswitch.publish("__main__", "__tick__", self.ticks_second, 
                         tick_second, tick_min, tick_hour, tick_day, 
                         self.sec_count, self.min_count, self.hour_count, self.day_count)
         
@@ -390,6 +389,7 @@ def custom_dispatch(source, q, pq, dispatcher, low_priority_burst_size=5):
                 continue
             handled=dispatcher(mtype, msg, *pargs)
             if handled==False:
+                print "!! %s: not interest in: %s" % (orig, mtype)
                 mswitch.publish(source, "__interest__", (mtype, False, pq))
                 break
         except Empty:
@@ -409,6 +409,7 @@ def custom_dispatch(source, q, pq, dispatcher, low_priority_burst_size=5):
                 continue
             handled=dispatcher(envelope)
             if handled==False:
+                print "!! %s: not interest in: %s" % (orig, mtype)
                 mswitch.publish(source, "__interest__", (mtype, False, q))
             burst -= 1
             if burst == 0:

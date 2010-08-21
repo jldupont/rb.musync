@@ -42,7 +42,7 @@ class BridgeAgent(object):
         #    print "to mswitch: mtype(%s) pa:%s" % (mtype, pa)
         mswitch.publish(self.NAME, mtype, *pa)
 
-        if mtype=="tick":
+        if mtype=="__tick__":
             custom_dispatch(self.NAME, 
                             self.iq, self.ipq, 
                             self._dispatcher)
