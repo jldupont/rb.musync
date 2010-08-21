@@ -73,6 +73,8 @@ class Plugin (rb.Plugin):
         self.start_phase=True
         self.current_entries_count=0
         self.previous_entries_count=0
+        
+        Bus.subscribe("__pluging__", "__tick__", self.h_tick)
 
     def activate (self, shell):
         """
@@ -128,6 +130,23 @@ class Plugin (rb.Plugin):
         self.load_complete=True
         Bus.publish("__pluging__", "load_complete")
 
+    def h_tick(self, ticks_per_second, 
+               second_marker, min_marker, hour_marker, day_marker,
+               sec_count, min_count, hour_count, day_count):
+
+        """        
+        if min_marker:
+            print "current(%s) previous(%s)" % (self.current_entries_count, self.previous_entries_count)
+        """
+
+        if second_marker:
+            if self.start_phase:
+                if self.previous_entries_count==self.current_entries_count:
+                    if self.current_entries_count!=0:
+                        self.start_phase=False
+                        Bus.publish("__pluging__", "rb_load_completed")
+                self.previous_entries_count=self.current_entries_count
+        
 
     def on_entry_changed(self, _db, entry, _):
         """
@@ -142,10 +161,7 @@ class Plugin (rb.Plugin):
                 Bus.publish("__main__", "entry_changed", dict_entry)
         
         if self.start_phase:
-            if self.previous_entries_count==self.current_entries_count:
-                if self.current_entries_count!=0:
-                    self.start_phase=False
-                    Bus.publish("__pluging__", "rb_load_completed")
+            self.current_entries_count+=1
 
 
 def tick_publisher(*p):
