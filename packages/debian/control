@@ -1,0 +1,14 @@
+Source: _PKG_
+Priority: optional
+Section: devel
+Build-Depends: python (>= 2.5), debhelper (>= 7), python-support (>= 0.5.3), python-setuptools
+Standards-Version: 3.8.0
+Maintainer: Jean-Lou Dupont <jl@jldupont.com>
+Homepage: _DOC_
+
+Package: _PKG_
+Architecture: all
+Depends: python (>= 2.5), ${misc:Depends}, ${python:Depends}
+Description: Application for synchronizing music related aspects across the cloud through http://services.systemical.com/
+ For more details, please see _DOC_
+ .

@@ -1,0 +1,9 @@
+[RB Plugin]
+Loader=python
+Module=sync_ratings
+IAge=1
+Name=Sync Ratings
+Description=This plugin synchronizes music track ratings through the web service at http://www.systemical.com/ 
+Authors=Jean-Lou Dupont <jl@jldupont.com>
+Copyright=Copyright © 2009 Jean-Lou Dupont
+Website=http://www.systemical.com/
