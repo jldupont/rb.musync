@@ -75,6 +75,8 @@ class Plugin (rb.Plugin):
         self.previous_entries_count=0
         self.song_entries=[]
         
+        Bus.subscribe("__pluging__", "devmode?", self.hq_devmode)
+        Bus.subscribe("__pluging__", "appname?", self.hq_appname)
         Bus.subscribe("__pluging__", "__tick__", self.h_tick)
 
     def activate (self, shell):
@@ -131,6 +133,12 @@ class Plugin (rb.Plugin):
         self.load_complete=True
         Bus.publish("__pluging__", "load_complete")
 
+    def hq_appname(self):
+        Bus.publish("__pluging__", "appname", PLUGIN_NAME)
+        
+    def hq_devmode(self):
+        Bus.publish("__pluging__", "devmode", DEV_MODE)
+
     def h_tick(self, ticks_per_second, 
                second_marker, min_marker, hour_marker, day_marker,
                sec_count, min_count, hour_count, day_count):
@@ -177,12 +185,14 @@ class Plugin (rb.Plugin):
                 dict_entry=EntryHelper.track_details2(self.db, entry)
                 Bus.publish("__pluging__", "entry_changed", rbid, dict_entry)
         
+        ## During the startup phase, just accumulate the ID of each valid song entry
         if self.start_phase:
             self.current_entries_count+=1  ## all entries count at this point            
             
             ## but we are only interested in 'songs'
             if is_song:
-                self.song_entries.append(rbid)
+                playcount=self.db.entry_get(entry, rhythmdb.PROP_PLAY_COUNT)
+                self.song_entries.append((rbid, playcount))
 
 
 
