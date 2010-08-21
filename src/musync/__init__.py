@@ -73,6 +73,7 @@ class Plugin (rb.Plugin):
         self.start_phase=True
         self.current_entries_count=0
         self.previous_entries_count=0
+        self.song_entries=[]
         
         Bus.subscribe("__pluging__", "__tick__", self.h_tick)
 
@@ -86,7 +87,7 @@ class Plugin (rb.Plugin):
         
         ## We might have other signals to connect to in the future
         self.dbcb = (
-                     #self.db.connect("entry-added",    self.on_entry_added),
+                     self.db.connect("entry-added",    self.on_entry_added),
                      self.db.connect("entry-changed",  self.on_entry_changed),
                      self.db.connect("load-complete",  self.on_load_complete),
                      )
@@ -144,9 +145,22 @@ class Plugin (rb.Plugin):
                 if self.previous_entries_count==self.current_entries_count:
                     if self.current_entries_count!=0:
                         self.start_phase=False
-                        Bus.publish("__pluging__", "rb_load_completed")
+                        Bus.publish("__pluging__", "rb_load_completed", self.song_entries)
                 self.previous_entries_count=self.current_entries_count
         
+    def on_entry_added(self, _db, entry):
+        """
+        'entry-changed' signal handler
+        """
+        if self.start_phase:
+            return
+        
+        rbid=self.db.entry_get(entry, rhythmdb.PROP_ENTRY_ID)
+        type=entry.get_entry_type()
+        is_song=(type==self.type_song)
+        if is_song:
+            dict_entry=EntryHelper.track_details2(self.db, entry)
+            Bus.publish("__pluging__", "entry_added", rbid, dict_entry)
 
     def on_entry_changed(self, _db, entry, _):
         """
@@ -154,14 +168,22 @@ class Plugin (rb.Plugin):
         
         This handler is also called during the start-up phase of RB... quite annoying
         """
+        rbid=self.db.entry_get(entry, rhythmdb.PROP_ENTRY_ID)
+        type=entry.get_entry_type()
+        is_song=(type==self.type_song)
+                
         if not self.start_phase:
-            type=entry.get_entry_type()
-            if type==self.type_song:
+            if is_song:
                 dict_entry=EntryHelper.track_details2(self.db, entry)
-                Bus.publish("__main__", "entry_changed", dict_entry)
+                Bus.publish("__pluging__", "entry_changed", rbid, dict_entry)
         
         if self.start_phase:
-            self.current_entries_count+=1
+            self.current_entries_count+=1  ## all entries count at this point            
+            
+            ## but we are only interested in 'songs'
+            if is_song:
+                self.song_entries.append(rbid)
+
 
 
 def tick_publisher(*p):
