@@ -18,8 +18,8 @@
 """
 from Queue import Queue
 
-from sync_ratings.system.mbus import Bus
-from sync_ratings.system.base import mswitch, custom_dispatch
+from musync.system.mbus import Bus
+from musync.system.base import mswitch, custom_dispatch
 
 
 class BridgeAgent(object):

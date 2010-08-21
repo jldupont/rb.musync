@@ -31,9 +31,9 @@
 """
 import time
 
-from synclastfm.system.mbus import Bus
-from synclastfm.track import Track
-from synclastfm.helpers import EntryHelper
+from musync.system.mbus import Bus
+from musync.track import Track
+from musync.helpers import EntryHelper
 
 class LibWalker(object):
 

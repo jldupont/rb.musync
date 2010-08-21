@@ -31,7 +31,7 @@
 """
 import dbus.service
 
-from sync_ratings.system.base import AgentThreadedBase
+from musync.system.base import AgentThreadedBase
 
 class DbusInterface(dbus.service.Object):
     """

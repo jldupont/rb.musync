@@ -4,7 +4,7 @@
     Created on 2010-08-20
     @author: jldupont
 """
-from sync_ratings.system.base import AgentThreadedWithEvents
+from musync.system.base import AgentThreadedWithEvents
 
 class TesterAgent(AgentThreadedWithEvents):
 
