@@ -210,7 +210,8 @@ class Plugin (rb.Plugin):
             ## but we are only interested in 'songs'
             if is_song:
                 playcount=self.db.entry_get(entry, rhythmdb.PROP_PLAY_COUNT)
-                self.song_entries.append((rbid, playcount))
+                rating=self.db.entry_get(entry, rhythmdb.PROP_RATING)
+                self.song_entries.append((rbid, playcount, rating))
 
 
 

@@ -32,12 +32,20 @@ class LibWalker(object):
 
     def __init__(self):
         self.song_entries=[]
+        self.rated_song_count=None
+        
         self.load_completed=False
         self.appname=None
         
-        Bus.subscribe(self.__class__, "__tick__",      self.h_tick)
-        Bus.subscribe(self.__class__, "rb_shell",      self.h_rb_shell)
-        Bus.subscribe(self.__class__, "song_entries",  self.h_song_entries)
+        self.state="wait_load_completed"
+        self.musync_detected=False
+        self.musync_lastest_timestamp=None
+        self.musync_lastest_ratings_count=None
+        
+        
+        Bus.subscribe(self.__class__, "__tick__",           self.h_tick)
+        Bus.subscribe(self.__class__, "rb_shell",           self.h_rb_shell)
+        Bus.subscribe(self.__class__, "rb_load_completed",  self.h_rb_load_completed)
         Bus.subscribe(self.__class__, "entry_added",   self.h_entry_added)
         Bus.subscribe(self.__class__, "entry_changed", self.h_entry_changed)
         Bus.subscribe(self.__class__, "entry_deleted", self.h_entry_deleted)
@@ -66,21 +74,24 @@ class LibWalker(object):
     def h_entry_changed(self, rbid, entry):
         pass
 
-
-    def h_song_entries(self, entries):
-        self.song_entries=entries
-
     def h_rb_shell(self, _shell, db, _sp):
         """
         Grab RB objects references (shell, db, player)
         """
         self.db=db
 
-    def h_rb_load_completed(self, *_):
+    def h_rb_load_completed(self, entries):
         """
         Database fully loaded - the load on RB should have dropped
         """
         self.load_completed=True
+        self.song_entries=entries
+        
+        self.rated_song_count = 0
+        for entry in entries:
+            _rbid, _playcount, rating=entry
+            if rating > 0:
+                self.rated_song_count += 1
 
     def h_tick(self, ticks_second, 
                     tick_second, tick_min, tick_hour, tick_day, 
@@ -88,11 +99,49 @@ class LibWalker(object):
         """
         'tick' timebase handler
         """
-     
-    ## ========================================================================= helpers
-     
+        ### Dispatch based on the state variable
+        if tick_min:
+            getattr(self, "st_"+self.state)()
 
+    ## =========
+    ## from musync
+    def h_musync_in_updated(self, timestamp, count):
+        self.musync_detected=True
+        self.musync_lastest_timestamp=timestamp
+        self.musync_lastest_ratings_count=count
+            
      
+    ## =========================================================================
+    ## STATE MACHINE
+    def st_wait_load_completed(self):
+        """
+        Wait until the rb database is fully loaded
+        """
+        if self.load_completed:
+            
+            ### must have musync available or else what's the point?
+            if not self.musync_detected:
+                return
+            
+            ### hmmm.... can't take a stand right now either...
+            if self.rated_song_count is None or self.rated_song_count==0:
+                return
+
+            if self.musync_lastest_ratings_count==0:
+                self.state="push_mode"
+            else:
+                self.state="pull_mode"
+                
+    def st_push_mode(self):
+        """
+        MuSync seems empty... populate it!
+        """
+        
+    def st_pull_mode(self):
+        """
+        Normal operation mode - pull updates from MuSync
+        """
+    
      
 
 _=LibWalker()
