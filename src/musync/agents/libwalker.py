@@ -38,13 +38,17 @@ class LibWalker(object):
         Bus.subscribe(self.__class__, "__tick__",      self.h_tick)
         Bus.subscribe(self.__class__, "rb_shell",      self.h_rb_shell)
         Bus.subscribe(self.__class__, "song_entries",  self.h_song_entries)
+        Bus.subscribe(self.__class__, "entry_added",   self.h_entry_added)
+        Bus.subscribe(self.__class__, "entry_changed", self.h_entry_changed)
+        Bus.subscribe(self.__class__, "entry_deleted", self.h_entry_deleted)
         Bus.subscribe(self.__class__, "appname",       self.h_appname)
         Bus.subscribe(self.__class__, "devmode",       self.h_devmode)
 
+        ## get configuration, the tricky way ;-)
         Bus.publish(self.__class__, "appname?")
-        self.sm=StateManager(self.appname)
-
         Bus.publish(self.__class__, "devmode?")
+        
+        self.sm=StateManager(self.appname)
         
     ## ========================================================================= handlers
     def h_appname(self, appname):
@@ -52,6 +56,16 @@ class LibWalker(object):
 
     def h_devmode(self, devmode):
         self.devmode=devmode
+
+    def h_entry_added(self, rbid, entry):
+        pass
+    
+    def h_entry_deleted(self, rbid, entry):
+        pass
+
+    def h_entry_changed(self, rbid, entry):
+        pass
+
 
     def h_song_entries(self, entries):
         self.song_entries=entries
