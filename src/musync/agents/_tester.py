@@ -22,9 +22,6 @@ class TesterAgent(AgentThreadedWithEvents):
     def t_min(self, *_):
         pass
         
-    def h_entry_changed(self, entry):
-        pass
-        #print entry
         
         
 _=TesterAgent()

@@ -20,6 +20,7 @@ DEV_MODE=True
 PLUGIN_NAME="musync"
 TICK_FREQ=4
 TIME_BASE=250
+MSWITCH_OBSERVE_MODE=True
 
 import os
 import sys
@@ -48,10 +49,13 @@ from config import ConfigDialog
 import system.base as base
 base.debug=DEV_MODE
 
-import system.mswitch
+import system.mswitch as mswitch
+mswitch.observe_mode=MSWITCH_OBSERVE_MODE
+
 import agents.bridge
 import agents.mb
 import agents.monitor
+import agents.musync_dbus
 #import agents.libwalker
 
 import agents._tester
