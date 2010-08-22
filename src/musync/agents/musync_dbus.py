@@ -2,10 +2,15 @@
     Musync Agent Dbus
     
     Messages Processed:
-    
+    ==================
+    - "qrating"
+    - "qratings"
+    - "out_rating"
     
     Messages Generated:
+    ===================
     - "musync_in_updated"
+    - "musync_in_rating"
     
     
     @author: jldupont
@@ -45,7 +50,7 @@ class DbusInterface(dbus.service.Object):
         """
         'rating' signal from Musync
         """
-        mswitch.publish("__musync_dbus__", "in_rating", source, ref, timestamp, artist_name, album_name, track_name, rating)
+        mswitch.publish("__musync_dbus__", "musync_in_rating", source, ref, timestamp, artist_name, album_name, track_name, rating)
         
         
     def rx_updated(self, timestamp, ratings_count):
@@ -57,8 +62,8 @@ class DbusInterface(dbus.service.Object):
 
     ## ================================================================
     ## Emitters
-    @dbus.service.signal(dbus_interface="com.systemical.services", signature="ssss")
-    def qrating(self, ref, artist_name, album_name, track_name):
+    @dbus.service.signal(dbus_interface="com.systemical.services", signature="sssss")
+    def qrating(self, source, ref, artist_name, album_name, track_name):
         """
         'qratings' signal emitter
         """
@@ -84,14 +89,14 @@ class MusyncAgent(AgentThreadedBase):
         self.dif=DbusInterface(self)
         self.detected=False
         
-    def hq_ratings(self, source, ref, timestamp, count):
+    def hq_qratings(self, source, ref, timestamp, count):
         self.dif.qratings(source, ref, timestamp, count)
 
     def h_out_rating(self, source, ref, timestamp, artist_name, album_name, track_name, rating):
         self.dif.rating(source, ref, timestamp, artist_name, album_name, track_name, rating)
 
-    def hq_rating(self, ref, artist_name, album_name, track_name):
-        self.dif.qrating(ref, artist_name, album_name, track_name)
+    def hq_qrating(self, source, ref, artist_name, album_name, track_name):
+        self.dif.qrating(source, ref, artist_name, album_name, track_name)
 
         
 ## Kick start the agent        

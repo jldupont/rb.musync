@@ -20,8 +20,6 @@
     @author: jldupont
     @date: Jun 4, 2010
 """
-import time
-
 from musync.system.mbus import Bus
 from musync.helpers.db import EntryHelper
 

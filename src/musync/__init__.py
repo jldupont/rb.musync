@@ -12,6 +12,7 @@
     - "song_entries"
     - "rb_shell"
     - "entry_added"
+    - "entry_deleted"
     - "track?"
 
     
@@ -94,6 +95,7 @@ class Plugin (rb.Plugin):
         ## We might have other signals to connect to in the future
         self.dbcb = (
                      self.db.connect("entry-added",    self.on_entry_added),
+                     self.db.connect("entry-deleted",  self.on_entry_deleted),
                      self.db.connect("entry-changed",  self.on_entry_changed),
                      self.db.connect("load-complete",  self.on_load_complete),
                      )
@@ -159,6 +161,18 @@ class Plugin (rb.Plugin):
                         self.start_phase=False
                         Bus.publish("__pluging__", "rb_load_completed", self.song_entries)
                 self.previous_entries_count=self.current_entries_count
+        
+    def on_entry_deleted(self, _db, entry):
+        """
+        'entry-deleted' signal handler
+        """
+        rbid=self.db.entry_get(entry, rhythmdb.PROP_ENTRY_ID)
+        type=entry.get_entry_type()
+        is_song=(type==self.type_song)
+        if is_song:
+            dict_entry=EntryHelper.track_details2(self.db, entry)
+            Bus.publish("__pluging__", "entry_deleted", rbid, dict_entry)
+
         
     def on_entry_added(self, _db, entry):
         """
