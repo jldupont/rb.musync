@@ -57,7 +57,7 @@ import agents.bridge
 import agents.mb
 import agents.monitor
 import agents.musync_dbus
-#import agents.libwalker
+import agents.libwalker
 
 import agents._tester
 
@@ -78,7 +78,7 @@ class Plugin (rb.Plugin):
         self.start_phase=True
         self.current_entries_count=0
         self.previous_entries_count=0
-        self.song_entries=[]
+        self.song_entries={}
         
         Bus.subscribe("__pluging__", "devmode?", self.hq_devmode)
         Bus.subscribe("__pluging__", "appname?", self.hq_appname)
@@ -114,14 +114,15 @@ class Plugin (rb.Plugin):
         for id in self.dbcb:
             db.disconnect(id)
 
+    """
     def create_configure_dialog(self, dialog=None):
-        """
+        ""
         This method is called by RB when "configure" button
         is pressed in the "Edit->Plugins" menu.
         
         Note that the dialog *shouldn't* be destroyed but "hidden" 
         when either the "close" or "X" buttons are pressed.
-        """
+        ""
         if not dialog:
             glade_file_path=self.find_file("config.glade")
             proxy=ConfigDialog(glade_file_path)
@@ -129,7 +130,8 @@ class Plugin (rb.Plugin):
         dialog.present()
         Bus.publish("__pluging__", "config?")
         return dialog
-
+    """
+    
     ## ================================================  rb signal handlers
     
     def on_load_complete(self, *_):
@@ -178,6 +180,8 @@ class Plugin (rb.Plugin):
         """
         'entry-changed' signal handler
         """
+        
+        ### don't push out 'entry_added' before we are settled!
         if self.start_phase:
             return
         
@@ -188,7 +192,7 @@ class Plugin (rb.Plugin):
             dict_entry=EntryHelper.track_details2(self.db, entry)
             Bus.publish("__pluging__", "entry_added", rbid, dict_entry)
 
-    def on_entry_changed(self, _db, entry, _):
+    def on_entry_changed(self, _db, entry, changes):
         """
         'entry-changed' signal handler
         
@@ -201,7 +205,7 @@ class Plugin (rb.Plugin):
         if not self.start_phase:
             if is_song:
                 dict_entry=EntryHelper.track_details2(self.db, entry)
-                Bus.publish("__pluging__", "entry_changed", rbid, dict_entry)
+                Bus.publish("__pluging__", "entry_changed", rbid, dict_entry, changes)
         
         ## During the startup phase, just accumulate the ID of each valid song entry
         if self.start_phase:
@@ -211,7 +215,7 @@ class Plugin (rb.Plugin):
             if is_song:
                 playcount=self.db.entry_get(entry, rhythmdb.PROP_PLAY_COUNT)
                 rating=self.db.entry_get(entry, rhythmdb.PROP_RATING)
-                self.song_entries.append((rbid, playcount, rating))
+                self.song_entries[str(rbid)]=(playcount, rating)
 
 
 

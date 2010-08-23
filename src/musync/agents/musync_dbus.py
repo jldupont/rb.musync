@@ -50,6 +50,13 @@ class DbusInterface(dbus.service.Object):
         """
         'rating' signal from Musync
         """
+        try:    r=float(rating)
+        except: r=None
+        
+        if r is None:
+            print "rx_rating: cannot convert to float!"
+            return
+        
         mswitch.publish("__musync_dbus__", "musync_in_rating", source, ref, timestamp, artist_name, album_name, track_name, rating)
         
         
@@ -57,7 +64,17 @@ class DbusInterface(dbus.service.Object):
         """
         Signal emitter for "/ratings/updated"
         """
-        mswitch.publish("__musync_dbus__", "musync_in_updated", timestamp, ratings_count)
+        try:    ts=int(timestamp)
+        except: ts=None
+        try:    c=int(ratings_count)
+        except: c=None
+        
+        ### catch error, silently
+        if ts is None or c is None:
+            print "rx_updated: cannot convert to int!"
+            return
+        
+        mswitch.publish("__musync_dbus__", "musync_in_updated", ts, c)
         self.detected=True
 
     ## ================================================================

@@ -122,13 +122,17 @@ class Bus(object):
         #if msgType!="mswitch_pump":
         #    print "bus.publish: mtype(%s) caller(%s)" % (msgType, caller)
         cls._maybeLog(msgType, "BUS.publish: type(%s) caller(%s) pa(%s) kwa(%s)" % (msgType, caller, pa, kwa))
+        
+        #try:
         subs=cls.ftable.get(msgType, [])
         if not subs:
             cls._maybeLog(msgType, "Bus.publish: no subs for msgtype(%s)" % str(msgType))
         else:
             ## First, do the normal subscribers
             cls._doPub(False, subs, caller, msgType, *pa, **kwa)
-        
+        #except Exception,e:
+        #    print "mbus.publish: error: acaller(%s) msgType(%s): %s" % (acaller, msgType, e)
+            
         ## Second, do the "promiscuous" subscribers
         psubs=cls.ftable.get("*", [])
         cls._doPub(True, psubs, caller, msgType, *pa, **kwa)
@@ -152,8 +156,8 @@ class Bus(object):
             except IOError:
                 raise
             except TypeError,e:
-                print "Bus.publish: Exception: %s" % e
+                print "Bus.publish: caller(%s) msgType(%s) sub(%s) Exception: %s" % (caller, msgType, sub, e)
                 raise
             except Exception,e:
-                print "Bus.publish: cb(%s) exception: %s" % (cb, e)
+                print "Bus.publish: caller(%s) msgType(%s) cb(%s) exception: %s" % (caller, msgType, cb, e)
                 raise

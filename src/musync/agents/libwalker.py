@@ -46,8 +46,8 @@ class LibWalker(object):
         Bus.subscribe(self.__class__, "__tick__",           self.h_tick)
         Bus.subscribe(self.__class__, "rb_shell",           self.h_rb_shell)
         Bus.subscribe(self.__class__, "rb_load_completed",  self.h_rb_load_completed)
-        Bus.subscribe(self.__class__, "entry_added",   self.h_entry_added)
-        Bus.subscribe(self.__class__, "entry_changed", self.h_entry_changed)
+        Bus.subscribe(self.__class__, "entry_added",        self.h_entry_added)
+        Bus.subscribe(self.__class__, "entry_changed",      self.h_entry_changed)
         Bus.subscribe(self.__class__, "entry_deleted", self.h_entry_deleted)
         Bus.subscribe(self.__class__, "appname",       self.h_appname)
         Bus.subscribe(self.__class__, "devmode",       self.h_devmode)
@@ -66,13 +66,16 @@ class LibWalker(object):
         self.devmode=devmode
 
     def h_entry_added(self, rbid, entry):
-        pass
+        self.song_entries[rbid]=(None, None)
     
     def h_entry_deleted(self, rbid, entry):
-        pass
+        try:   
+            del self.song_entries[rbid]
+        except:
+            self.pub("llog", "err/", "error", "Tried deleting an entry from song_entries")
 
-    def h_entry_changed(self, rbid, entry):
-        pass
+    def h_entry_changed(self, rbid, entry, changes):
+        self.dprint("! Changes: %s" % changes)
 
     def h_rb_shell(self, _shell, db, _sp):
         """
@@ -88,10 +91,12 @@ class LibWalker(object):
         self.song_entries=entries
         
         self.rated_song_count = 0
-        for entry in entries:
-            _rbid, _playcount, rating=entry
+        for _rbid, entry in entries.iteritems():
+            _playcount, rating=entry
             if rating > 0:
                 self.rated_song_count += 1
+     
+        print("! found %s tracks with a rating" % self.rated_song_count)
 
     def h_tick(self, ticks_second, 
                     tick_second, tick_min, tick_hour, tick_day, 
@@ -100,8 +105,12 @@ class LibWalker(object):
         'tick' timebase handler
         """
         ### Dispatch based on the state variable
-        if tick_min:
-            getattr(self, "st_"+self.state)()
+        try:
+            if tick_min:
+                getattr(self, "st_"+self.state)()
+        except Exception,e:
+            print "!!! Attempted to dispatch, state: %s, exception: %s" % (self.state, e)
+            
 
     ## =========
     ## from musync

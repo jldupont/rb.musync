@@ -407,7 +407,7 @@ def custom_dispatch(source, q, pq, dispatcher, low_priority_burst_size=5):
             ## skip self
             if orig==source:
                 continue
-            handled=dispatcher(envelope)
+            handled=dispatcher(mtype, msg, *pargs)
             if handled==False:
                 print "!! %s: not interest in: %s" % (orig, mtype)
                 mswitch.publish(source, "__interest__", (mtype, False, q))
