@@ -8,14 +8,17 @@
     @author: jldupont
     @date: May 17, 2010
     @revised: June 18, 2010
-    @revised: August 22, 2010 : filtered-out "send to self" case    
+    @revised: August 22, 2010 : filtered-out "send to self" case 
+    @revised: August 23, 2010 : added "snooping mode"   
 """
 
 from threading import Thread
 from Queue import Queue, Empty
 
 __all__=["publish", "subscribe", "observe_mode"]
-OSBSERVE_FILTER_OUT=["__tick__", "log", "llog"]
+OBSERVE_FILTER_OUT=["__tick__", "log", "llog"]
+OBSERVE_FILTER_OUT_SOURCES=["__bridge__",]
+#OSBSERVE_FILTER_OUT=["log", "llog"]
             
 observe_mode=False
 
@@ -45,6 +48,13 @@ class BasicSwitch(Thread):
     def run(self):
         """
         Main loop
+        
+        Process the messages in the input queues of the switch.
+        Each message is inspected and dispatched appropriately 
+        to the client subscribers.
+        
+        The system messages "__interest__" and "__quit__" are
+        given special attention.
         """
         quit=False
         while not quit:
@@ -59,7 +69,7 @@ class BasicSwitch(Thread):
                     orig, mtype, payload=envelope
                     
                     if mtype=="__interest__":
-                        self.do_interest(payload)
+                        self.do_interest(orig, payload)
                     else:
                         self.do_pub(orig, mtype, payload)
                     ## We needed to give a chance to
@@ -82,8 +92,8 @@ class BasicSwitch(Thread):
                     envelope=self.iq.get(block=True, timeout=0.1)
                     orig, mtype, payload=envelope
                     if mtype=="__sub__":
-                        sorig, q, sq=payload
-                        self.do_sub(sorig, q, sq)
+                        q, sq=payload
+                        self.do_sub(orig, q, sq)
                     else:
                         self.do_pub(orig, mtype, payload)
 
@@ -103,13 +113,18 @@ class BasicSwitch(Thread):
         
         print "mswitch - shutdown"
         
-    def do_interest(self, payload):
+    def do_interest(self, source, args):
         """
-        Add a 'subscriber' for 'mtype'
+        Add a 'subscriber' for 'mtype' to the "interested" list
         """
-        _orig, msg, _pargs, _kargs = payload
-        mtype, interest, q = msg
-        self.imap[(q, mtype)]=interest
+        
+        payload, _kargs = args
+        agent_name, mtype, interest, snooping, _q, _iq = payload
+        self.imap[(source, mtype)]=(interest, snooping)
+        
+        print ":::: do_interest: source(%s) mtype(%s) interest(%s)" % (agent_name, mtype, interest)
+        if interest:
+            print "do_interest: source(%s) mtype(%s) interest(%s) snooping(%s) " % (source, mtype, interest, snooping)
                
                 
     def do_sub(self, orig, q, sq):
@@ -129,7 +144,7 @@ class BasicSwitch(Thread):
             if sorig==orig:
                 continue
             
-            interest=self.imap.get((q, mtype), None)
+            (interest,  snooping)=self.imap.get((sorig, mtype), (None, None))
             
             """
             if interest==False:
@@ -138,18 +153,25 @@ class BasicSwitch(Thread):
                     print "agent(%s) not interested mtype(%s)" % (str(q), mtype)
                     self.rmap[(q, mtype)]=True
             """
+            if observe_mode:
+                if mtype not in OBSERVE_FILTER_OUT:
+                    if orig not in OBSERVE_FILTER_OUT_SOURCES:
+                        if interest:
+                            print "<<< do_pub: orig(%s) interest(%s) mtype(%s) q(%s) sq(%s)" % (orig, interest, mtype, q, sq)
                 
             ### Agent notified interest OR not sure yet            
             if interest==True or interest==None:
 
-                if observe_mode:
-                    if mtype not in OSBSERVE_FILTER_OUT:
-                        print "<<< do_pub: interest(%s) mtype(%s) q(%s) sq(%s)" % (interest, mtype, q, sq)
-                
                 if mtype.startswith("__"):
-                    sq.put((sorig, mtype, payload), block=False)
+                    if snooping:
+                        sq.put((orig, mtype, None), block=False)
+                    else:
+                        sq.put((orig, mtype, payload), block=False)
                 else:
-                    q.put((sorig, mtype, payload), block=False)
+                    if snooping:
+                        q.put((orig, mtype, None), block=False)
+                    else:
+                        q.put((orig, mtype, payload), block=False)
             #if mtype!="tick":                    
             #    print ">>> do_pub: mtype(%s) q(%s) sq(%s)" % (mtype, q, sq)
     
@@ -160,15 +182,15 @@ class BasicSwitch(Thread):
 ## =============================================================== 
         
 
-def publish(orig, msgType, msg=None, *pargs, **kargs):
+def publish(orig, msgType, *pargs, **kargs):
     """
     Publish a 'message' of type 'msgType' to
     all registered 'clients'
     """
     if msgType.startswith("__"):
-        _switch.isq.put((orig, msgType, (orig, msg, pargs, kargs)), block=False)
+        _switch.isq.put((orig, msgType, (pargs, kargs)), block=False)
     else:
-        _switch.iq.put((orig, msgType, (orig, msg, pargs, kargs)), block=False)
+        _switch.iq.put((orig, msgType, (pargs, kargs)), block=False)
     
     
 def subscribe(orig, q, sq, _msgType=None):
@@ -177,7 +199,7 @@ def subscribe(orig, q, sq, _msgType=None):
      
     @param q: client's input queue
     """
-    _switch.iq.put((orig, "__sub__", (orig, q, sq)))
+    _switch.iq.put((orig, "__sub__", (q, sq)))
     
 
 

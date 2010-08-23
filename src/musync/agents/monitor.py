@@ -22,28 +22,36 @@ class MonitorAgent(AgentThreadedWithEvents):
         ,("min",  1, "t_min")
     ]
     
-    def __init__(self):
-        AgentThreadedWithEvents.__init__(self)
+    def __init__(self, debug=False):
+        AgentThreadedWithEvents.__init__(self, debug=debug)
         self.start_phase=True
         
     def t_sec(self, *_):
-        pass
+        print "monitor.t_sec"
             
     def t_min(self, *_):
         pass
        
-    def h_entry_changed(self, *p):
+    def hs_entry_changed(self):
         pass
         
-    def h_load_complete(self, *_):
+    def hs_load_complete(self, *p):
         """ Comes way too early to my taste
             Appears to be fired when the application is loaded
             and definitely not when the database is ready
         """
+        print "####### hs_load_complete:"+str(p)
+
+    def h_load_complete(self, *p):
+        """ Comes way too early to my taste
+            Appears to be fired when the application is loaded
+            and definitely not when the database is ready
+        """
+        print "####### h_load_complete ############"+ str(p)
         
-    def h_rb_load_completed(self, *p):
+    def hs_rb_load_completed(self):
         self.start_phase=False
+        print "####### hs_rb_load_completed:"
         
-        
-_=MonitorAgent()
+_=MonitorAgent(True)
 _.start()

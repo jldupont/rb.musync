@@ -4,11 +4,13 @@
     * high/low priority message queues
     * message bursting controlled
     * message dispatching based on Agent 'interest'
+    * default handler: "h_default" , catch-all messages
     
     @author: jldupont
     @date: May 17, 2010
     @revised: June 18, 2010
     @revised: August 22, 2010 : filtered-out "send to self" case
+    @revised: August 23, 2010 : added "snooping mode"    
 """
 
 from threading import Thread
@@ -22,36 +24,54 @@ __all__=["AgentThreadedBase", "AgentThreadedWithEvents", "debug", "mdispatch"]
 debug=False
 
 
-def mdispatch(obj, obj_orig, envelope):
+def mdispatch(obj, this_source, envelope):
     """
     Dispatches a message to the target
     handler inside a class instance
+    
+    @return (__quit__, mtype, handled, snooping)
+    
+    handled:  None  --> rejected because sending to self
+    handled:  True  --> message was handled by agent
+    handled:  False --> message wasn't handled by agent -- no interest
     """
-    _orig, mtype, payload = envelope
-    orig, msg, pargs, kargs = payload
+    orig, mtype, payload = envelope
+    pargs, kargs = payload
     
     ## Avoid sending to self
-    if orig == obj_orig:
-        return (False, mtype, None)
+    if orig == this_source:
+        print "************* mdispatch: dropped: orig(%s) obj_orig(%s) mtype(%s)" % (orig, this_source, mtype)
+        return (False, mtype, None, False)
 
     if mtype=="__quit__":
-        return (True, mtype, None)
+        return (True, mtype, None, False)
 
     handled=False
+    snoopingHandler=False
 
     if mtype.endswith("?"):
         handlerName="hq_%s" % mtype[:-1]
+        sHandlerName="hqs_%s" % mtype[:-1]
     else:
         handlerName="h_%s" % mtype
-    handler=getattr(obj, handlerName, None)
+        sHandlerName="hs_%s" % mtype
+        
+    handler =getattr(obj, handlerName, None)
+    shandler=getattr(obj, sHandlerName, None)    
+    
+    if handler is None:
+        if shandler is not None:
+            print "!! snooping handler found for mtype: %s" % mtype
+            snoopingHandler=True
+            handler=shandler
     
     if handler is None:
         handler=getattr(obj, "h_default", None)    
         if handler is not None:
-            handler(mtype, msg, *pargs, **kargs)
+            handler(mtype,*pargs, **kargs)
             handled=True
     else:
-        handler(msg, *pargs, **kargs)
+        handler(*pargs, **kargs)
         handled=True
 
     """
@@ -60,7 +80,7 @@ def mdispatch(obj, obj_orig, envelope):
             print "! No handler for message-type: %s" % mtype
     """
     
-    return (False, mtype, handled)
+    return (False, mtype, handled, snoopingHandler)
 
 
 class AgentThreadedBase(Thread):
@@ -79,18 +99,22 @@ class AgentThreadedBase(Thread):
         self.iq = Queue()
         self.isq= Queue()
         
+        self.agent_name=str(self.__class__).split(".")[-1][:-2]
+        self.responsesInterest=[]
+        
     def dprint(self, msg):
         if debug:
             print "+ %s: %s" % (self.__class__, msg)
         
-    def pub(self, msgType, msg, *pargs, **kargs):
-        mswitch.publish(self.id, msgType, msg, *pargs, **kargs)
+    def pub(self, msgType, *pargs, **kargs):
+        mswitch.publish(self.id, msgType, *pargs, **kargs)
         
     def run(self):
         """
         Main Loop
         """
-        print "Agent (%s) starting" % str(self.__class__)
+        
+        print "Agent(%s) starting" % self.agent_name
         
         ## subscribe this agent to all
         ## the messages of the switch
@@ -128,34 +152,49 @@ class AgentThreadedBase(Thread):
         print "Agent(%s) ending" % str(self.__class__)
                 
     def _process(self, envelope):
-        _orig, mtype, _payload = envelope
+        orig, mtype, _payload = envelope
         
         #if mtype!="tick":
         #    print "base._process: mtype: " + str(mtype)
-        
         interested=self.mmap.get(mtype, None)
         if interested==False:
             return False
         
-        quit, _mtype, handled=mdispatch(self, self.id, envelope)
+        quit, _mtype, handled, snooping=mdispatch(self, self.id, envelope)
         if quit:
             shutdown_handler=getattr(self, "h_shutdown", None)
             if shutdown_handler is not None:
                 shutdown_handler()
 
-        if handled is not None:
-            self.mmap[mtype]=handled
-            
+        ## not much more to do here...
+        ## but shouldn't happen anyhow!!! #paranoia...
+        if handled is None:
+            return
+
+        interestFirstTimeNoted=self.mmap.get(mtype, None)
+        #if interestFirstTimeNoted is None:
+        #    print "Agent(%s) mtype(%s) interested(%s) snooping(%s)" % (self.__class__, mtype, handled, snooping)
+        #    print "Agent(%s) map: %s" % (self.__class__, self.mmap)
+
         ### signal this Agent's interest status (True/False)
         ### to the central message switch
         if interested is None:
             if mtype!="__quit__":
-                mswitch.publish(self.__class__, "__interest__", (mtype, handled, self.iq))
+                if mtype not in self.responsesInterest:
+                    mswitch.publish(self.id, "__interest__", self.agent_name, mtype, handled, snooping, self.iq, self.isq)
+                    self.responsesInterest.append(mtype)
+
+                    ## stop sending to self definitely
+                    if handled is None:
+                        handled=False
+                        
+                    print "+++ interest orig(%s) mtype(%s): (%s)" % (orig, mtype, handled)
+                    self.mmap[mtype]=handled
             
         ### This debug info is extermely low overhead... keep it.
-        if interested is None and handled:
-            print "Agent(%s) interested(%s)" % (self.__class__, mtype)
-            print "Agent(%s) map: %s" % (self.__class__, self.mmap)
+        #if interested is None and handled:
+        #    print "Agent(%s) interested(%s) snooping(%s)" % (self.__class__, mtype, snooping)
+        #    print "Agent(%s) map: %s" % (self.__class__, self.mmap)
 
         return quit
             
@@ -174,8 +213,8 @@ class AgentThreadedWithEvents(AgentThreadedBase):
         ("sec", 2, callback) : will fire "callback" every 2 seconds
         ("min", 5, callback) : will fire "callback" every 5 minutes
     """
-    def __init__(self, timers_spec=[]):
-        AgentThreadedBase.__init__(self)
+    def __init__(self, timers_spec=[], debug=False):
+        AgentThreadedBase.__init__(self, debug)
         
         try:    ts=self.__class__.TIMERS_SPEC
         except: ts=[]
@@ -204,6 +243,7 @@ class AgentThreadedWithEvents(AgentThreadedBase):
         """
         CRON like support
         """
+        #print "%s: __tick__" % (self.__class__,)
         #print "h_tick: sec_count(%s) min_count(%s) hour_count(%s) day_count(%s)" % (sec_count, min_count, hour_count, day_count)
         #print "h_tick: sec(%s) min(%s) hour(%s) day(%s)" % (second_marker, min_marker, hour_marker, day_marker)
         if second_marker:
@@ -295,7 +335,7 @@ class AgentThreadedBridge(object):
                 envelope=self.isq.get(False)
                 quit, mtype, handled=mdispatch(self, "__main__", envelope)
                 if handled==False:
-                    mswitch.publish(self.__class__, "__interest__", (mtype, False, self.isq))
+                    mswitch.publish(self.__class__, "__interest__", mtype, False, False, self.isq)
                 if quit:
                     self.on_destroy()
                     break
@@ -311,7 +351,7 @@ class AgentThreadedBridge(object):
                 envelope=self.iq.get(False)
                 quit, mtype, handled=mdispatch(self, "__main__", envelope)
                 if handled==False:
-                    mswitch.publish(self.__class__, "__interest__", (mtype, False, self.iq))
+                    mswitch.publish(self.__class__, "__interest__", mtype, False, False, self.iq)
                 if quit:
                     self.on_destroy()
                     break
@@ -386,16 +426,16 @@ def custom_dispatch(source, q, pq, dispatcher, low_priority_burst_size=5):
     while True:
         try:     
             envelope=pq.get(False)
-            _sorig, mtype, payload = envelope
-            orig, msg, pargs, _kargs = payload
+            orig, mtype, payload = envelope
+            pargs, _kargs = payload
             
             ## skip self
             if orig==source:
                 continue
-            handled=dispatcher(mtype, msg, *pargs)
+            handled, snooping=dispatcher(mtype, *pargs)
             if handled==False:
                 print "* '%s': not interest in '%s' message type" % (orig, mtype)
-                mswitch.publish(source, "__interest__", (mtype, False, pq))
+                mswitch.publish(source, "__interest__", source, mtype, False, snooping, pq)
                 break
         except Empty:
             break
@@ -406,16 +446,16 @@ def custom_dispatch(source, q, pq, dispatcher, low_priority_burst_size=5):
     while True:
         try:     
             envelope=q.get(False)
-            _sorig, mtype, payload = envelope
-            orig, msg, pargs, _kargs = payload
+            orig, mtype, payload = envelope
+            pargs, _kargs = payload
 
             ## skip self
             if orig==source:
                 continue
-            handled=dispatcher(mtype, msg, *pargs)
+            handled, snooping=dispatcher(mtype, *pargs)
             if handled==False:
                 print "* '%s': not interest in '%s' message type" % (orig, mtype)
-                mswitch.publish(source, "__interest__", (mtype, False, q))
+                mswitch.publish(source, "__interest__", source, mtype, False, snooping, q)
             burst -= 1
             if burst == 0:
                 break

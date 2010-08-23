@@ -35,16 +35,24 @@ class BridgeAgent(object):
         Bus.subscribe(self.NAME, "*", self.h_msg)
         
     def _dispatcher(self, mtype, *pargs):
+        
+        ## let's not repeart ourselves...
+        if mtype=="__tick__":
+            return
+        
         try:
             handled=Bus.publish(self.NAME, mtype, *pargs)
-            return handled
+            return (handled, False)
         except Exception,e:
             print "BridgeAgent._dispatcher: pargs: %s ---- exception: %s" % (str(pargs), e)
+            return (False, False)
         
-    def h_msg(self, mtype, *pa):        
-        #if mtype!="tick":
+    def h_msg(self, mtype, *pa):    
+        #if mtype!="__tick__":
         #    print "to mswitch: mtype(%s) pa:%s" % (mtype, pa)
-        mswitch.publish(self.NAME, mtype, *pa)
+            
+        if mtype!="_sub":
+            mswitch.publish(self.NAME, mtype, *pa)
 
         if mtype=="__tick__":
             custom_dispatch(self.NAME, 

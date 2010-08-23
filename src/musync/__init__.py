@@ -140,6 +140,7 @@ class Plugin (rb.Plugin):
         """
         self.load_complete=True
         Bus.publish("__pluging__", "load_complete")
+        print "rb.musync: LOAD-COMPLETE"
 
     def hq_appname(self):
         Bus.publish("__pluging__", "appname", PLUGIN_NAME)
@@ -216,7 +217,6 @@ class Plugin (rb.Plugin):
                 playcount=self.db.entry_get(entry, rhythmdb.PROP_PLAY_COUNT)
                 rating=self.db.entry_get(entry, rhythmdb.PROP_RATING)
                 self.song_entries[str(rbid)]=(playcount, rating)
-
 
 
 def tick_publisher(*p):
