@@ -44,15 +44,19 @@ def mdispatch(obj, obj_orig, envelope):
         handlerName="h_%s" % mtype
     handler=getattr(obj, handlerName, None)
     
-    if handler is None:
-        handler=getattr(obj, "h_default", None)    
-        if handler is not None:
-            handler(mtype, msg, *pargs, **kargs)
+    try:
+        if handler is None:
+            handler=getattr(obj, "h_default", None)    
+            if handler is not None:
+                handler(mtype, msg, *pargs, **kargs)
+                handled=True
+        else:
+            handler(msg, *pargs, **kargs)
             handled=True
-    else:
-        handler(msg, *pargs, **kargs)
-        handled=True
-
+    except Exception,e:
+        handled=False
+        print "*** Attempting to dispatch message: obj(%s), mtype(%s): %s" % (obj, mtype, e)
+        
     """
     if handler is None:
         if debug:

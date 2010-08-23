@@ -67,16 +67,16 @@ class LibWalker(object):
         self.devmode=devmode
 
     def h_entry_added(self, rbid, entry):
-        self.song_entries[rbid]=(None, None)
+        self.song_entries[str(rbid)]=(None, None)
     
     def h_entry_deleted(self, rbid, entry):
         try:   
-            del self.song_entries[rbid]
+            del self.song_entries[str(rbid)]
         except:
             self.pub("llog", "err/", "error", "Tried deleting an entry from song_entries")
 
     def h_entry_changed(self, rbid, entry, changes):
-        self.dprint("! Changes: %s" % changes)
+        print("! entry_changed: changes: %s" % changes)
 
     def h_rb_shell(self, _shell, db, _sp):
         """

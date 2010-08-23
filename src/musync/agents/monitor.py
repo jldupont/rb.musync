@@ -32,7 +32,7 @@ class MonitorAgent(AgentThreadedWithEvents):
     def t_min(self, *_):
         pass
        
-    def h_entry_changed(self, _entry_id, _entry):
+    def h_entry_changed(self, _entry_id, _entry, _changes):
         pass
         
     def h_load_complete(self, *_):
