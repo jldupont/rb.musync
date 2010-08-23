@@ -61,7 +61,6 @@ def mdispatch(obj, this_source, envelope):
     
     if handler is None:
         if shandler is not None:
-            print "!! snooping handler found for mtype: %s" % mtype
             snoopingHandler=True
             handler=shandler
     

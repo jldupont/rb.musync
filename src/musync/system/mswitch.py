@@ -122,9 +122,7 @@ class BasicSwitch(Thread):
         agent_name, mtype, interest, snooping, _q, _iq = payload
         self.imap[(source, mtype)]=(interest, snooping)
         
-        print ":::: do_interest: source(%s) mtype(%s) interest(%s)" % (agent_name, mtype, interest)
-        if interest:
-            print "do_interest: source(%s) mtype(%s) interest(%s) snooping(%s) " % (source, mtype, interest, snooping)
+        print ":::: do_interest: source(%s) mtype(%s) interest(%s) snooping(%s)" % (agent_name, mtype, interest, snooping)
                
                 
     def do_sub(self, orig, q, sq):
