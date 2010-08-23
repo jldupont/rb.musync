@@ -32,7 +32,7 @@ class MonitorAgent(AgentThreadedWithEvents):
     def t_min(self, *_):
         pass
        
-    def h_entry_changed(self, _entry_id, _entry, _changes):
+    def h_entry_changed(self, *p):
         pass
         
     def h_load_complete(self, *_):
@@ -41,7 +41,7 @@ class MonitorAgent(AgentThreadedWithEvents):
             and definitely not when the database is ready
         """
         
-    def h_rb_load_completed(self, song_entries_id_list):
+    def h_rb_load_completed(self, *p):
         self.start_phase=False
         
         

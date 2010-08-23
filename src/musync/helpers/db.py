@@ -46,3 +46,11 @@ class EntryHelper(object):
         except:
             pass
         return result
+
+    @classmethod
+    def track_details3(cls, db, rbid):
+        """
+        Retrieves details associated with a db entry specified by an "id" parameter
+        """
+        dbe=db.entry_lookup_by_id(rbid)
+        return cls.track_details2(db, dbe)

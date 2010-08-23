@@ -20,19 +20,20 @@
     @author: jldupont
     @date: Jun 4, 2010
 """
-from musync.system.mbus import Bus
-from musync.helpers.db import EntryHelper
+import time
 
+from musync.system.mbus import Bus
 from musync.helpers.state import StateManager
+from musync.helpers.db import EntryHelper
 
 class LibWalker(object):
 
-    ### libwalk period
-    WALKING_TIMEOUT=24*60*60
+    MAX_BATCH_SIZE=200
+    ST_INTERVAL=10
 
     def __init__(self):
         self.song_entries=[]
-        self.rated_song_count=None
+        self.song_entries_with_ratings=[]
         
         self.load_completed=False
         self.appname=None
@@ -75,8 +76,11 @@ class LibWalker(object):
         except:
             self.pub("llog", "err/", "error", "Tried deleting an entry from song_entries")
 
-    def h_entry_changed(self, rbid, entry, changes):
-        print("! entry_changed: changes: %s" % changes)
+    def h_entry_changed(self, rbid, entry, _changes):
+        """
+        NOTE: Can't access the changes list (just a gpointer...)
+        """
+
 
     def h_rb_shell(self, _shell, db, _sp):
         """
@@ -92,12 +96,12 @@ class LibWalker(object):
         self.song_entries=entries
         
         self.rated_song_count = 0
-        for _rbid, entry in entries.iteritems():
+        for rbid, entry in entries.iteritems():
             _playcount, rating=entry
             if rating > 0:
-                self.rated_song_count += 1
+                self.song_entries_with_ratings.append(rbid)
      
-        print("! found %s tracks with a rating" % self.rated_song_count)
+        print("! found %s tracks with a rating" % len(self.song_entries_with_ratings))
 
     def h_tick(self, ticks_second, 
                     tick_second, tick_min, tick_hour, tick_day, 
@@ -107,8 +111,10 @@ class LibWalker(object):
         """
         ### Dispatch based on the state variable
         try:
-            if tick_min:
-                getattr(self, "st_"+self.state)()
+            if tick_second:
+                go=(sec_count % self.ST_INTERVAL)==0
+                if go:
+                    getattr(self, "st_"+self.state)()
         except Exception,e:
             print "!!! Attempted to dispatch, state: %s, exception: %s" % (self.state, e)
             
@@ -135,7 +141,7 @@ class LibWalker(object):
             print "libwalker: musync_detected"
             
             ### hmmm.... can't take a stand right now either...
-            if self.rated_song_count is None or self.rated_song_count==0:
+            if len(self.song_entries_with_ratings)==0:
                 return
             
             print "libwalker: ratings found"
@@ -149,13 +155,43 @@ class LibWalker(object):
         """
         MuSync seems empty... populate it!
         """
-        print "libwalker: PUSH MODE"
+        now=time.time()
+        count=0
+        while True:
+            try:    
+                rbid=self.song_entries_with_ratings.pop()
+            except:
+                print "Finished 'push mode'" 
+                break
+            
+            try:
+                dbe=self.db.entry_lookup_by_id(int(rbid))
+                e=EntryHelper.track_details2(self.db, dbe)
+            except Exception,e:
+                print "!! PUSH MODE: get track details: exception: %s" % e
+                #Bus.publish(self.__class__, "llog", "err/", "error", "Fetching track details from RB")
+                continue
+            
+            #h_out_rating(self, source, ref, timestamp, artist_name, album_name, track_name, rating):
+            try:
+                Bus.publish(self.__class__, "out_rating", "rb", "rb:%s" % rbid,
+                            int(now), 
+                            e["artist_name"], e["album_name"], e["track_name"], 
+                            e["rating"])
+            except Exception,e:
+                print "!! PUSH MODE: publish: exception: %s" % e
+                #Bus.publish(self.__class__, "llog", "err/", "error", "Sending 'rating' message: %s" % e)
+
+            count += 1
+            if count > self.MAX_BATCH_SIZE:
+                break
+            
         
     def st_pull_mode(self):
         """
         Normal operation mode - pull updates from MuSync
         """
-        print "libwalker: PULL MODE"
+
      
 
 _=LibWalker()
