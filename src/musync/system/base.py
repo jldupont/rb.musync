@@ -389,7 +389,7 @@ def custom_dispatch(source, q, pq, dispatcher, low_priority_burst_size=5):
                 continue
             handled=dispatcher(mtype, msg, *pargs)
             if handled==False:
-                print "!! %s: not interest in: %s" % (orig, mtype)
+                print "* '%s': not interest in '%s' message type" % (orig, mtype)
                 mswitch.publish(source, "__interest__", (mtype, False, pq))
                 break
         except Empty:
@@ -409,7 +409,7 @@ def custom_dispatch(source, q, pq, dispatcher, low_priority_burst_size=5):
                 continue
             handled=dispatcher(mtype, msg, *pargs)
             if handled==False:
-                print "!! %s: not interest in: %s" % (orig, mtype)
+                print "* '%s': not interest in '%s' message type" % (orig, mtype)
                 mswitch.publish(source, "__interest__", (mtype, False, q))
             burst -= 1
             if burst == 0:

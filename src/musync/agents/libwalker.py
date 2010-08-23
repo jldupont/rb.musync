@@ -46,6 +46,7 @@ class LibWalker(object):
         Bus.subscribe(self.__class__, "__tick__",           self.h_tick)
         Bus.subscribe(self.__class__, "rb_shell",           self.h_rb_shell)
         Bus.subscribe(self.__class__, "rb_load_completed",  self.h_rb_load_completed)
+        Bus.subscribe(self.__class__, "musync_in_updated",  self.h_musync_in_updated)
         Bus.subscribe(self.__class__, "entry_added",        self.h_entry_added)
         Bus.subscribe(self.__class__, "entry_changed",      self.h_entry_changed)
         Bus.subscribe(self.__class__, "entry_deleted", self.h_entry_deleted)
@@ -127,30 +128,34 @@ class LibWalker(object):
         Wait until the rb database is fully loaded
         """
         if self.load_completed:
-            
             ### must have musync available or else what's the point?
             if not self.musync_detected:
                 return
             
+            print "libwalker: musync_detected"
+            
             ### hmmm.... can't take a stand right now either...
             if self.rated_song_count is None or self.rated_song_count==0:
                 return
+            
+            print "libwalker: ratings found"
 
             if self.musync_lastest_ratings_count==0:
                 self.state="push_mode"
             else:
                 self.state="pull_mode"
-                
+
     def st_push_mode(self):
         """
         MuSync seems empty... populate it!
         """
+        print "libwalker: PUSH MODE"
         
     def st_pull_mode(self):
         """
         Normal operation mode - pull updates from MuSync
         """
-    
+        print "libwalker: PULL MODE"
      
 
 _=LibWalker()

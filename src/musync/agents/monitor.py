@@ -3,7 +3,6 @@
     
     Messages Processed:
     ===================
-    - "entry_changed" : used to determine when the "start phase" of RB is completed
     
     Messages Emitted:
     =================
