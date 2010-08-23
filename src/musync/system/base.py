@@ -195,7 +195,7 @@ class AgentThreadedBase(Thread):
                     if handled is None:
                         handled=False
                         
-                    print "+++ interest orig(%s) mtype(%s): (%s)" % (orig, mtype, handled)
+                    print "+++ interest msg-orig(%s) target(%s) mtype(%s): (%s)" % (orig, self.agent_name, mtype, handled)
                     self.mmap[mtype]=handled
             
         ### This debug info is extermely low overhead... keep it.
