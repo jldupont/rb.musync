@@ -36,7 +36,12 @@ def mdispatch(obj, this_source, envelope):
     handled:  False --> message wasn't handled by agent -- no interest
     """
     orig, mtype, payload = envelope
-    pargs, kargs = payload
+    
+    ## on snooping handlers...
+    try:    pargs, kargs = payload
+    except: 
+        pargs=()
+        kargs=()
     
     ## Avoid sending to self
     if orig == this_source:
@@ -70,8 +75,11 @@ def mdispatch(obj, this_source, envelope):
             handler(mtype,*pargs, **kargs)
             handled=True
     else:
-        handler(*pargs, **kargs)
         handled=True
+        if snoopingHandler:
+            handler()
+        else:
+            handler(*pargs, **kargs)
 
     """
     if handler is None:
