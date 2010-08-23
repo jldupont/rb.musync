@@ -30,7 +30,8 @@ class BridgeAgent(object):
         
         self.iq=Queue()  #normal queue
         self.ipq=Queue() #high priority queue
-        
+
+        mswitch.subscribe(self.NAME, self.iq, self.ipq)        
         Bus.subscribe(self.NAME, "*", self.h_msg)
         
     def _dispatcher(self, mtype, *pargs):
@@ -52,4 +53,4 @@ class BridgeAgent(object):
 
 
 _=BridgeAgent()
-mswitch.subscribe(_.iq, _.ipq)
+

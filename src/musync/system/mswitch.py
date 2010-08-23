@@ -8,16 +8,16 @@
     @author: jldupont
     @date: May 17, 2010
     @revised: June 18, 2010
+    @revised: August 22, 2010 : filtered-out "send to self" case    
 """
 
 from threading import Thread
 from Queue import Queue, Empty
 
 __all__=["publish", "subscribe", "observe_mode"]
-FILTER_OUT=["__tick__", "log", "llog"]
+OSBSERVE_FILTER_OUT=["__tick__", "log", "llog"]
             
 observe_mode=False
-
 
 class BasicSwitch(Thread):
     """
@@ -56,12 +56,12 @@ class BasicSwitch(Thread):
                 ###  after the other queue's timeout / 1 msg processed
                 try:
                     envelope=self.isq.get(block=False)
-                    mtype, payload=envelope
+                    orig, mtype, payload=envelope
                     
                     if mtype=="__interest__":
                         self.do_interest(payload)
                     else:
-                        self.do_pub(mtype, payload)
+                        self.do_pub(orig, mtype, payload)
                     ## We needed to give a chance to
                     ## all threads to exit before
                     ## committing "hara-kiri"
@@ -80,12 +80,12 @@ class BasicSwitch(Thread):
                 try:            
                     ## normal priority queue            
                     envelope=self.iq.get(block=True, timeout=0.1)
-                    mtype, payload=envelope
+                    orig, mtype, payload=envelope
                     if mtype=="__sub__":
-                        q, sq=payload
-                        self.do_sub(q, sq)
+                        sorig, q, sq=payload
+                        self.do_sub(sorig, q, sq)
                     else:
-                        self.do_pub(mtype, payload)
+                        self.do_pub(orig, mtype, payload)
 
                     if mtype=="__quit__":
                         quit=True
@@ -112,18 +112,23 @@ class BasicSwitch(Thread):
         self.imap[(q, mtype)]=interest
                
                 
-    def do_sub(self, q, sq):
+    def do_sub(self, orig, q, sq):
         """
         Performs subscription
         """
-        self.clients.append((q, sq))
+        self.clients.append((orig, q, sq))
         
-    def do_pub(self, mtype, payload):
+    def do_pub(self, orig, mtype, payload):
         """
         Performs message distribution
         """
         #print "do_pub: mtype: %s  payload: %s" % (mtype, payload)
-        for q, sq in self.clients:
+        for sorig, q, sq in self.clients:
+            
+            ## don't send to self!
+            if sorig==orig:
+                continue
+            
             interest=self.imap.get((q, mtype), None)
             
             """
@@ -133,19 +138,18 @@ class BasicSwitch(Thread):
                     print "agent(%s) not interested mtype(%s)" % (str(q), mtype)
                     self.rmap[(q, mtype)]=True
             """
-            #if mtype!="tick":
-            #    print "<<< do_pub: mtype(%s) q(%s) sq(%s)" % (mtype, q, sq)
+                
             ### Agent notified interest OR not sure yet            
             if interest==True or interest==None:
 
                 if observe_mode:
-                    if mtype not in FILTER_OUT:
-                        print "<<< do_pub: mtype(%s) q(%s) sq(%s)" % (mtype, q, sq)
+                    if mtype not in OSBSERVE_FILTER_OUT:
+                        print "<<< do_pub: interest(%s) mtype(%s) q(%s) sq(%s)" % (interest, mtype, q, sq)
                 
                 if mtype.startswith("__"):
-                    sq.put((mtype, payload), block=False)
+                    sq.put((sorig, mtype, payload), block=False)
                 else:
-                    q.put((mtype, payload), block=False)
+                    q.put((sorig, mtype, payload), block=False)
             #if mtype!="tick":                    
             #    print ">>> do_pub: mtype(%s) q(%s) sq(%s)" % (mtype, q, sq)
     
@@ -162,19 +166,18 @@ def publish(orig, msgType, msg=None, *pargs, **kargs):
     all registered 'clients'
     """
     if msgType.startswith("__"):
-        _switch.isq.put((msgType, (orig, msg, pargs, kargs)), block=False)
+        _switch.isq.put((orig, msgType, (orig, msg, pargs, kargs)), block=False)
     else:
-        _switch.iq.put((msgType, (orig, msg, pargs, kargs)), block=False)
+        _switch.iq.put((orig, msgType, (orig, msg, pargs, kargs)), block=False)
     
     
-def subscribe(q, sq, _msgType=None):
+def subscribe(orig, q, sq, _msgType=None):
     """
     Subscribe a 'client' to all the switch messages
      
-    @param q:  client's input queue
-    @param sq: client's priority input queue
+    @param q: client's input queue
     """
-    _switch.iq.put(("__sub__", (q, sq)))
+    _switch.iq.put((orig, "__sub__", (orig, q, sq)))
     
 
 

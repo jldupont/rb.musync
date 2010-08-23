@@ -8,6 +8,7 @@
     @author: jldupont
     @date: May 17, 2010
     @revised: June 18, 2010
+    @revised: August 22, 2010 : filtered-out "send to self" case
 """
 
 from threading import Thread
@@ -16,17 +17,17 @@ import uuid
 
 import mswitch
 
-__all__=["AgentThreadedBase", "AgentThreadedWithEvents", "AgentThreadedBridge" 
-         ,"debug", "mdispatch", "custom_dispatch", "TickGenerator"]
+__all__=["AgentThreadedBase", "AgentThreadedWithEvents", "debug", "mdispatch"]
 
 debug=False
+
 
 def mdispatch(obj, obj_orig, envelope):
     """
     Dispatches a message to the target
     handler inside a class instance
     """
-    mtype, payload = envelope
+    _orig, mtype, payload = envelope
     orig, msg, pargs, kargs = payload
     
     ## Avoid sending to self
@@ -44,19 +45,15 @@ def mdispatch(obj, obj_orig, envelope):
         handlerName="h_%s" % mtype
     handler=getattr(obj, handlerName, None)
     
-    try:
-        if handler is None:
-            handler=getattr(obj, "h_default", None)    
-            if handler is not None:
-                handler(mtype, msg, *pargs, **kargs)
-                handled=True
-        else:
-            handler(msg, *pargs, **kargs)
+    if handler is None:
+        handler=getattr(obj, "h_default", None)    
+        if handler is not None:
+            handler(mtype, msg, *pargs, **kargs)
             handled=True
-    except Exception,e:
-        handled=False
-        print "*** Attempting to dispatch message: obj(%s), mtype(%s): %s" % (obj, mtype, e)
-        
+    else:
+        handler(msg, *pargs, **kargs)
+        handled=True
+
     """
     if handler is None:
         if debug:
@@ -86,8 +83,8 @@ class AgentThreadedBase(Thread):
         if debug:
             print "+ %s: %s" % (self.__class__, msg)
         
-    def pub(self, msgType, *pargs, **kargs):
-        mswitch.publish(self.id, msgType, *pargs, **kargs)
+    def pub(self, msgType, msg, *pargs, **kargs):
+        mswitch.publish(self.id, msgType, msg, *pargs, **kargs)
         
     def run(self):
         """
@@ -97,7 +94,7 @@ class AgentThreadedBase(Thread):
         
         ## subscribe this agent to all
         ## the messages of the switch
-        mswitch.subscribe(self.iq, self.isq)
+        mswitch.subscribe(self.id, self.iq, self.isq)
         
         quit=False
         while not quit:
@@ -131,7 +128,7 @@ class AgentThreadedBase(Thread):
         print "Agent(%s) ending" % str(self.__class__)
                 
     def _process(self, envelope):
-        mtype, _payload = envelope
+        _orig, mtype, _payload = envelope
         
         #if mtype!="tick":
         #    print "base._process: mtype: " + str(mtype)
@@ -174,8 +171,8 @@ class AgentThreadedWithEvents(AgentThreadedBase):
         [seconds_timeout, minutes_timeout, hours_timeout, days_timeout]
         
         E.g.
-        ("sec", 2, "callback") # will fire "callback" named callable every 2 seconds
-        ("min", 5, "callback") # will fire "callback" named callable every 5 minutes
+        ("sec", 2, callback) : will fire "callback" every 2 seconds
+        ("min", 5, callback) : will fire "callback" every 5 minutes
     """
     def __init__(self, timers_spec=[]):
         AgentThreadedBase.__init__(self)
@@ -226,11 +223,15 @@ class AgentThreadedWithEvents(AgentThreadedBase):
                 callback(base, count)
                 
 
+                
+
 
 class AgentThreadedBridge(object):
     """
     Base class for agents bridging the "gobject world" (example)
     with the message based "mswitch world"
+    
+    *** NOT TESTED***
     """
     
     LOW_PRIORITY_MESSAGE_BURST_SIZE=5
@@ -385,7 +386,7 @@ def custom_dispatch(source, q, pq, dispatcher, low_priority_burst_size=5):
     while True:
         try:     
             envelope=pq.get(False)
-            mtype, payload = envelope
+            _sorig, mtype, payload = envelope
             orig, msg, pargs, _kargs = payload
             
             ## skip self
@@ -405,7 +406,7 @@ def custom_dispatch(source, q, pq, dispatcher, low_priority_burst_size=5):
     while True:
         try:     
             envelope=q.get(False)
-            mtype, payload = envelope
+            _sorig, mtype, payload = envelope
             orig, msg, pargs, _kargs = payload
 
             ## skip self

@@ -161,7 +161,6 @@ class LibWalker(object):
             try:    
                 rbid=self.song_entries_with_ratings.pop()
             except:
-                print "Finished 'push mode'" 
                 break
             
             try:
